@@ -68,9 +68,20 @@ run_test() {
 }
 
 # --- DÉMARRAGE ---
+echo "Starting service on port ${SERVICE_PORT}..."
+echo "Database: ${DB_HOST}:${DB_PORT}/${DB_NAME}"
 node src/server.js > service-output.log 2>&1 &
 SERVICE_PID=$!
-timeout 60 sh -c "until curl -s http://localhost:${SERVICE_PORT}/api/auth/health > /dev/null; do sleep 1; done"
+sleep 2
+echo "Service PID: $SERVICE_PID"
+cat service-output.log
+echo "---"
+timeout 60 sh -c "until curl -s http://localhost:${SERVICE_PORT}/api/auth/health > /dev/null; do sleep 1; done" || {
+  echo "❌ Health check timeout. Service logs:"
+  cat service-output.log
+  kill $SERVICE_PID 2>/dev/null || true
+  exit 124
+}
 
 # --- TESTS ---
 run_test "1. Health Check (Liveness)" "curl -s http://localhost:${SERVICE_PORT}/api/auth/health | jq -e '.status == \"ok\"'"

@@ -229,6 +229,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Génère le tag Docker (7 premiers caractères du commit SHA)
+      - name: Generate Docker tag
+        run: echo "DOCKER_TAG=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
       # Télécharger l'image tarball
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
@@ -292,6 +296,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Génère le tag Docker (7 premiers caractères du commit SHA)
+      - name: Generate Docker tag
+        run: echo "DOCKER_TAG=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
 
       # Configurer QEMU
       - name: Set up QEMU

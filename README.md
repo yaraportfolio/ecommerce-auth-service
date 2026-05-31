@@ -51,41 +51,35 @@ Microservice d'authentification JWT — partie de l'architecture microservices e
 
 ---
 
-## 🔄 Pipeline CI/CD
+## 🔄 Pipeline CI/CD (GitHub Actions)
 
 ```
-                      GitLab Push / PR
+                    GitHub Push / Pull Request
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Stage 1 — Test                                         │
-│  └── test-api.sh : 10-13 tests endpoints API            │
+│  Job 1 : Test API (parallèle)                          │
+│  └── npm install + test-api.sh : 10-13 tests endpoints  │
+│  └── Dépendance : MariaDB 10.11                         │
 ├─────────────────────────────────────────────────────────┤
-│  Stage 2 — Build                                        │
-│  └── Docker multi-stage build                           │
-│      Node 18 (build) → Node 18 Alpine (runtime ~80MB)   │
+│  Job 2 : Dependency Scanning (parallèle)                │
+│  └── Trivy FS scan : scanne les vulnérabilités          │
 ├─────────────────────────────────────────────────────────┤
-│  Stage 3 — Push                                         │
-│  ├── Harbor  : harbor.myvbox.com/ecommerce/auth-service │
-│  └── Docker Hub : yaramahi/auth-service:v3.2            │
+│  Job 3 : Build Docker Image (après tests réussis)      │
+│  └── Docker multi-stage : Node 20 Alpine                │
+│  └── Sauvegarde l'image en artefact                     │
 ├─────────────────────────────────────────────────────────┤
-│  Stage 4 — Security Scan                                │
-│  ├── security-scan.sh    : Trivy (CVE image scan)       │
-│  └── git-security-scan.sh: Secrets/tokens dans le code  │
+│  Job 4 : Scan Container (main uniquement)              │
+│  └── Trivy container scan : détecte vulnérabilités      │
+├─────────────────────────────────────────────────────────┤
+│  Job 5 : Push to GHCR (main uniquement)                │
+│  └── GitHub Container Registry : ghcr.io/...           │
+│  └── Tags : commit-sha + latest                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-<details>
-  <summary><strong>🦊⚙️ Afficher l'Architecture du Pipeline CI/CD (Gitlab)</strong></summary>
-
-![Pipeline CI/CD](https://gitlab.com/yara_portfolio/devops/ecommerce/ecommerce-frontend/-/raw/main/.img/Pipeline-CICD-GitLab.png)
-
-</details>
-
-**Fichiers CI/CD :**
-- `.gitlab-ci.yml` — Pipeline GitLab
-- `Jenkinsfile-ci` — Pipeline Jenkins (stages: Test → Build → Scan → Push)
-- `Jenkins Harbor Guide` — Guide setup Jenkins + Harbor
+**Fichier CI/CD :**
+- `.github/workflows/ci.yml` — Pipeline GitHub Actions complète avec tests, scans de sécurité et déploiement
 
 ---
 
