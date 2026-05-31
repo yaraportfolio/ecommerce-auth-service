@@ -30,7 +30,7 @@ env:
 jobs:
   # -----------------------------------------------------------------
   # JOB 1 : TESTS API
-  # Intégration d'un environnement éphémère avec Node.js et MariaDB
+  # Intégration d'un environnement éphémère avec Node.js et Mysql
   # -----------------------------------------------------------------
   test_api:
     name: Test API
@@ -78,7 +78,7 @@ jobs:
       # Attendre que MariaDB soit opérationnelle
       - name: Wait for MariaDB
         run: |
-          timeout 60 sh -c 'until mysql -h localhost -u devops_user -pdevops_password -e "SELECT 1"; do
+          timeout 60 sh -c 'until mysql -h 127.0.0.1 -u devops_user -pdevops_password -e "SELECT 1"; do
             echo "⏳ Waiting for MariaDB instance..."
             sleep 2
           done'
@@ -86,7 +86,7 @@ jobs:
       # Importer le schéma et les données de test
       - name: Setup test database
         run: |
-          mysql -h localhost -u devops_user -pdevops_password ecommerce_db < ./testapi/data-test-api.sql
+          mysql -h 127.0.0.1 -u devops_user -pdevops_password ecommerce_db < ./testapi/data-test-api.sql
 
       # Exécuter les tests API
       - name: Run API tests
