@@ -52,7 +52,7 @@ jobs:
           MARIADB_PASSWORD: devops_password
         # Vérifie que MariaDB est prêt toutes les 10 secondes (timeout 5s, max 3 tentatives)
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot_password || exit 1"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
@@ -78,7 +78,7 @@ jobs:
       # Attendre que MariaDB soit opérationnelle
       - name: Wait for MariaDB
         run: |
-          timeout 60 sh -c 'until mariadb --skip-ssl -h localhost -u devops_user -pdevops_password -e "SELECT 1"; do
+          timeout 60 sh -c 'until mysql -h localhost -u devops_user -pdevops_password -e "SELECT 1"; do
             echo "⏳ Waiting for MariaDB instance..."
             sleep 2
           done'
@@ -86,7 +86,7 @@ jobs:
       # Importer le schéma et les données de test
       - name: Setup test database
         run: |
-          mariadb --skip-ssl -h localhost -u devops_user -pdevops_password ecommerce_db < ./testapi/data-test-api.sql
+          mysql -h localhost -u devops_user -pdevops_password ecommerce_db < ./testapi/data-test-api.sql
 
       # Exécuter les tests API
       - name: Run API tests
