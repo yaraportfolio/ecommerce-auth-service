@@ -1,0 +1,323 @@
+# =================================================================
+# PIPELINE CI/CD : AUTH SERVICE (GitHub Actions)
+# =================================================================
+# Ce workflow assure le cycle de vie complet de l'application :
+# 1. Validation fonctionnelle (Tests API)
+# 2. Audit de sécurité applicatif (SCA)
+# 3. Conteneurisation (Docker Build)
+# 4. Distribution (Docker Push)
+# 5. Audit de sécurité de l'image (Container Scanning)
+# =================================================================
+
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  # Configuration de l'image et du registre
+  DOCKER_IMAGE: yaramahi/auth-service
+  DOCKER_TAG: v3.3
+  SERVICE_PORT: 3001
+
+jobs:
+  # -----------------------------------------------------------------
+  # JOB 1 : TESTS API
+  # Intégration d'un environnement éphémère avec Node.js et MariaDB
+  # -----------------------------------------------------------------
+  test_api:
+    name: Test API
+    runs-on: ubuntu-latest
+
+    # Permissions nécessaires
+    permissions:
+      contents: read
+      checks: write
+
+    # Services (base de données et dépendances)
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root_password
+          MARIADB_DATABASE: ecommerce_db
+          MARIADB_USER: devops_user
+          MARIADB_PASSWORD: devops_password
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      # Récupérer le code du repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Configurer Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      # Installer les dépendances
+      - name: Install dependencies
+        run: npm install
+
+      # Attendre que MariaDB soit opérationnelle
+      - name: Wait for MariaDB
+        run: |
+          timeout 60 sh -c 'until mariadb --skip-ssl -h localhost -u devops_user -pdevops_password -e "SELECT 1"; do
+            echo "⏳ Waiting for MariaDB instance..."
+            sleep 2
+          done'
+
+      # Importer le schéma et les données de test
+      - name: Setup test database
+        run: |
+          mariadb --skip-ssl -h localhost -u devops_user -pdevops_password ecommerce_db < ./testapi/data-test-api.sql
+
+      # Exécuter les tests API
+      - name: Run API tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 3306
+          DB_NAME: ecommerce_db
+          DB_USER: devops_user
+          DB_PASSWORD: devops_password
+          JWT_SECRET: test_secret_key
+        run: |
+          chmod +x ./testapi/test-api.sh
+          ./testapi/test-api.sh
+
+      # Uploader le rapport de test
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-api-report
+          path: test-api-report.html
+          retention-days: 30
+
+  # -----------------------------------------------------------------
+  # JOB 2 : SCAN DÉPENDANCES
+  # Analyse statique (SCA) via Trivy
+  # -----------------------------------------------------------------
+  dependency_scanning:
+    name: Dependency Scanning
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Utiliser Trivy pour scanner les dépendances
+      - name: Run Trivy vulnerability scanner (filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      # Upload results to GitHub Security tab
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # Générer un rapport HTML (optionnel)
+      - name: Generate Trivy HTML report
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'template'
+          template: '@/contrib/html.tpl'
+          output: 'dependency-report.html'
+
+      # Uploader le rapport HTML
+      - name: Upload dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-report
+          path: dependency-report.html
+          retention-days: 30
+
+  # -----------------------------------------------------------------
+  # JOB 3 : BUILD IMAGE DOCKER
+  # Construction de l'image Docker
+  # -----------------------------------------------------------------
+  docker_build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test_api]  # Attendre que les tests passent
+
+    permissions:
+      contents: read
+      packages: read
+
+    # Seulement sur les branches main/develop
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Configurer QEMU pour les builds multi-plateformes (optionnel)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Configurer Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Builder l'image et exporter en tar (pour le scan)
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      # Uploader l'image tarball pour la prochaine étape
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+  # -----------------------------------------------------------------
+  # JOB 4 : SCAN IMAGE DOCKER
+  # Analyse de sécurité de l'image finale
+  # -----------------------------------------------------------------
+  image_scanning:
+    name: Scan Docker Image
+    runs-on: ubuntu-latest
+    needs: docker_build
+
+    permissions:
+      contents: read
+      security-events: write
+
+    # Seulement sur main
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Télécharger l'image tarball
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      # Charger l'image dans Docker daemon
+      - name: Load Docker image
+        run: |
+          docker load --input /tmp/image.tar
+
+      # Scanner l'image avec Trivy
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          format: 'sarif'
+          output: 'trivy-container-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      # Upload to GitHub Security
+      - name: Upload container scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-container-results.sarif'
+
+      # Générer rapport HTML
+      - name: Generate container scan HTML report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+          format: 'template'
+          template: '@/contrib/html.tpl'
+          output: 'container-report.html'
+
+      # Uploader le rapport
+      - name: Upload container report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-report
+          path: container-report.html
+          retention-days: 30
+
+  # -----------------------------------------------------------------
+  # JOB 5 : PUSH À DOCKER HUB
+  # Publication de l'image (automatique sur main)
+  # -----------------------------------------------------------------
+  docker_push:
+    name: Push to Docker Hub
+    runs-on: ubuntu-latest
+    needs: image_scanning
+
+    permissions:
+      contents: read
+      packages: write
+
+    # Seulement sur main
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Configurer QEMU
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Configurer Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Authentification Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      # Build et push l'image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}
+            ${{ env.DOCKER_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Notification de succès
+      - name: Notify push success
+        if: success()
+        run: echo "✅ Image pushed successfully to Docker Hub"
