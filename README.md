@@ -16,21 +16,21 @@ Microservice d'authentification JWT — partie de l'architecture microservices e
 ## 🗺️ Positionnement dans l'Architecture
 
 ```
-          Frontend (192.168.56.114)
-                      │
-                      ▼
-┌──────────────────────────────────────────────┐
-│  Kubernetes Cluster (192.168.56.111)         │
-│  Ingress :30080                              │
-│  ├── 🔐 auth-service    :3001  ← Ce service  │
-│  ├── 📦 product-service :3002                │
-│  ├── 🛒 order-service   :3003                │
-│  └── ⭐ review-service  :3004                │
-└──────────────────────────────────────────────┘
-                      │
-                      ▼
-        MariaDB (192.168.56.115:3306)
-  ecommerce_db — partagée par tous les services
+                 Frontend (192.168.56.114)
+                          │
+                          ▼
+      ┌──────────────────────────────────────┐
+      │  Kubernetes Cluster (192.168.56.111) │
+      │  Ingress :30080                      │
+      │  ├── 🔐 auth-service    :3001 ← HERE │
+      │  ├── 📦 product-service :3002        │
+      │  ├── 🛒 order-service   :3003        │
+      │  └── ⭐ review-service  :3004        │
+      └──────────────────────────────────────┘
+                          │
+                          ▼
+          MariaDB (192.168.56.115:3306)
+               ecommerce_db
 ```
 
 **Rôle de ce service :** Toutes les requêtes authentifiées des autres services passent par le JWT émis ici.
@@ -51,31 +51,33 @@ Microservice d'authentification JWT — partie de l'architecture microservices e
 
 ---
 
-## 🔄 Pipeline CI/CD (GitHub Actions)
+## 🔄 Pipeline CI/CD
 
 ```
-                    GitHub Push / Pull Request
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│  Job 1 : Test API (parallèle)                          │
-│  └── npm install + test-api.sh : 10-13 tests endpoints  │
-│  └── Dépendance : MariaDB 10.11                         │
-├─────────────────────────────────────────────────────────┤
-│  Job 2 : Dependency Scanning (parallèle)                │
-│  └── Trivy FS scan : scanne les vulnérabilités          │
-├─────────────────────────────────────────────────────────┤
-│  Job 3 : Build Docker Image (après tests réussis)      │
-│  └── Docker multi-stage : Node 20 Alpine                │
-│  └── Sauvegarde l'image en artefact                     │
-├─────────────────────────────────────────────────────────┤
-│  Job 4 : Scan Container (main uniquement)              │
-│  └── Trivy container scan : détecte vulnérabilités      │
-├─────────────────────────────────────────────────────────┤
-│  Job 5 : Push to GHCR (main uniquement)                │
-│  └── GitHub Container Registry : ghcr.io/...           │
-│  └── Tags : commit-sha + latest                        │
-└─────────────────────────────────────────────────────────┘
+              GitHub Push / Pull Request
+                        │
+                        ▼
+    ┌───────────────────────────────────────┐
+    │  Job 1 : Test API (parallèle)         │
+    │  └── npm install + test-api.sh        │
+    │  └── 10-13 tests endpoints            │
+    │  └── MariaDB 10.11 (dépendance)       │
+    ├───────────────────────────────────────┤
+    │  Job 2 : Dependency Scanning          │
+    │  └── Trivy FS scan                    │
+    │  └── Vulnérabilités des packages      │
+    ├───────────────────────────────────────┤
+    │  Job 3 : Build Docker Image           │
+    │  └── Docker multi-stage : Node 20     │
+    │  └── Image en artefact                │
+    ├───────────────────────────────────────┤
+    │  Job 4 : Scan Container (main only)   │
+    │  └── Trivy container scan             │
+    ├───────────────────────────────────────┤
+    │  Job 5 : Push to GHCR (main only)     │
+    │  └── ghcr.io/...                      │
+    │  └── Tags : sha + latest              │
+    └───────────────────────────────────────┘
 ```
 
 **Fichier CI/CD :**
@@ -86,7 +88,7 @@ Microservice d'authentification JWT — partie de l'architecture microservices e
 ## ⚡ Quick Start
 
 ```bash
-git clone https://gitlab.com/yara_portfolio/devops/ecommerce/microservice/auth-service.git
+git clone https://github.com/yaraportfolio/ecommerce-auth-service.git
 cd auth-service
 cp .env.example .env
 nano .env   # Définir DB_HOST, DB_PASSWORD, JWT_SECRET
@@ -128,7 +130,6 @@ auth-service/
 │   └── git-security-scan.sh    # Détection secrets dans le code
 ├── Dockerfile
 ├── Jenkinsfile-ci
-├── .gitlab-ci.yml
 ├── .env.example
 └── package.json
 ```
@@ -185,7 +186,7 @@ helm upgrade ecommerce-microservices . \
   --set services.authService.image.tag=v3.2
 ```
 
-Voir [k8s-helm-chart](https://gitlab.com/yara_portfolio/devops/ecommerce/devops-tools/k8s-helm-chart) pour le déploiement complet.
+Voir [k8s-helm-chart](https://github.com/yaraportfolio/k8s-helm-chart) pour le déploiement complet.
 
 ---
 
@@ -254,13 +255,13 @@ bash git-security-scan.sh
 
 | Composant | Repository |
 |-----------|------------|
-| 📦 Product Service | [product-service](https://gitlab.com/yara_portfolio/devops/ecommerce/microservice/product-service) |
-| 🛒 Order Service | [order-service](https://gitlab.com/yara_portfolio/devops/ecommerce/microservice/order-service) |
-| ⭐ Review Service | [review-service](https://gitlab.com/yara_portfolio/devops/ecommerce/microservice/review-service) |
-| ⎈ Helm Chart | [k8s-helm-chart](https://gitlab.com/yara_portfolio/devops/ecommerce/devops-tools/k8s-helm-chart) |
-| 🐝 Docker Swarm | [docker-swarm](https://gitlab.com/yara_portfolio/devops/ecommerce/devops-tools/docker-swarm) |
-| 🗄️ Base de données | [ecommerce-database](https://gitlab.com/yara_portfolio/devops/ecommerce/ecommerce-database) |
-| 🤖 Ansible Deployment | [ansible-deployment](https://gitlab.com/yara_portfolio/devops/ecommerce/ansible-deployment) |
+| 📦 Product Service | [product-service](https://github.com/yaraportfolio/ecommerce-product-service) |
+| 🛒 Order Service | [order-service](https://github.com/yaraportfolio/ecommerce-order-service) |
+| ⭐ Review Service | [review-service](https://github.com/yaraportfolio/ecommerce-review-service) |
+| ⎈ Helm Chart | [k8s-helm-chart](https://github.com/yaraportfolio/k8s-helm-chart) |
+| 🐝 Docker Swarm | [docker-swarm](https://github.com/yaraportfolio/docker-swarm) |
+| 🗄️ Base de données | [ecommerce-database](https://github.com/yaraportfolio/ecommerce-database) |
+| 🤖 Ansible Deployment | [ansible-deployment](https://github.com/yaraportfolio/ansible-deployment) |
 
 ---
 
