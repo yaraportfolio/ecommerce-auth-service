@@ -255,10 +255,11 @@ bash git-security-scan.sh
 
 | Composant | Repository |
 |-----------|------------|
+| 🌐 Frontend | [ecommerce-frontend](https://github.com/yaraportfolio/ecommerce-frontend) |
 | 📦 Product Service | [product-service](https://github.com/yaraportfolio/ecommerce-product-service) |
 | 🛒 Order Service | [order-service](https://github.com/yaraportfolio/ecommerce-order-service) |
 | ⭐ Review Service | [review-service](https://github.com/yaraportfolio/ecommerce-review-service) |
-| ⎈ Helm Chart | [k8s-helm-chart](https://github.com/yaraportfolio/k8s-helm-chart) |
+| ⎈ Helm Chart | [ecommerce-k8s-helm](https://github.com/yaraportfolio/ecommerce-k8s-helm) |
 | 🐝 Docker Swarm | [docker-swarm](https://github.com/yaraportfolio/docker-swarm) |
 | 🗄️ Base de données | [ecommerce-database](https://github.com/yaraportfolio/ecommerce-database) |
 | 🤖 Ansible Deployment | [ansible-deployment](https://github.com/yaraportfolio/ansible-deployment) |
