@@ -1,4 +1,4 @@
-# 🔐 Auth Service — Microservice JWT
+# 🔐 Auth Service - Microservice JWT
 
 ![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white)
@@ -7,9 +7,9 @@
 ![Trivy](https://img.shields.io/badge/Trivy-security_scan-1904DA?logo=aqua&logoColor=white)
 ![GHCR](https://img.shields.io/badge/GHCR-registry-24292e?logo=github&logoColor=white)
 
-Microservice d'authentification JWT — partie de l'architecture microservices e-commerce déployée sur **Kubernetes** (Helm) ou **Docker Swarm** (Kong Gateway).
+Microservice d'authentification JWT - partie de l'architecture microservices e-commerce déployée sur **Kubernetes** (Helm) ou **Docker Swarm** (Kong Gateway).
 
-> 💡 **Objectif Portfolio** : Ce service illustre le pipeline CI/CD complet avec GitHub Actions — tests → build Docker → scan Trivy → push GitHub Container Registry → déploiement Helm.
+> 💡 **Objectif Portfolio** : Ce service illustre le pipeline CI/CD complet avec GitHub Actions - tests → build Docker → scan Trivy → push GitHub Container Registry → déploiement Helm.
 
 ---
 
@@ -41,13 +41,13 @@ Microservice d'authentification JWT — partie de l'architecture microservices e
 
 | Méthode | Endpoint | Auth | Description |
 |---------|----------|:----:|-------------|
-| `POST` | `/api/auth/register` | — | Inscription utilisateur |
-| `POST` | `/api/auth/login` | — | Connexion → retourne JWT |
+| `POST` | `/api/auth/register` | - | Inscription utilisateur |
+| `POST` | `/api/auth/login` | - | Connexion → retourne JWT |
 | `GET` | `/api/auth/me` | JWT | Profil utilisateur courant |
-| `GET` | `/api/auth/health` | — | Liveness probe |
-| `GET` | `/api/auth/ready` | — | Readiness probe |
-| `GET` | `/api/auth/metrics` | — | Métriques Prometheus |
-| `GET` | `/api/auth/info` | — | Version et infos service |
+| `GET` | `/api/auth/health` | - | Liveness probe |
+| `GET` | `/api/auth/ready` | - | Readiness probe |
+| `GET` | `/api/auth/metrics` | - | Métriques Prometheus |
+| `GET` | `/api/auth/info` | - | Version et infos service |
 
 ---
 
@@ -81,7 +81,7 @@ Microservice d'authentification JWT — partie de l'architecture microservices e
 ```
 
 **Fichier CI/CD :**
-- `.github/workflows/ci.yml` — Pipeline GitHub Actions complète avec tests, scans de sécurité et déploiement
+- `.github/workflows/ci.yml` - Pipeline GitHub Actions complète avec tests, scans de sécurité et déploiement
 
 ---
 
@@ -146,8 +146,8 @@ auth-service/
 | `DB_PORT` | Port MariaDB | `3306` | ✅ |
 | `DB_NAME` | Base de données | `ecommerce_db` | ✅ |
 | `DB_USER` | Utilisateur BD | `devops_user` | ✅ |
-| `DB_PASSWORD` | Mot de passe BD | — | ✅ |
-| `JWT_SECRET` | Clé secrète JWT (min 32 chars) | — | ✅ |
+| `DB_PASSWORD` | Mot de passe BD | - | ✅ |
+| `JWT_SECRET` | Clé secrète JWT (min 32 chars) | - | ✅ |
 
 ---
 
@@ -268,6 +268,6 @@ bash git-security-scan.sh
 
 ## 👨‍💻 Auteur
 
-**Yara Mahi Mohamed** — Portfolio DevOps & SRE
+**Yara Mahi Mohamed** - Portfolio DevOps & SRE
 
 *⭐ N'oubliez pas de star ce repo si vous le trouvez utile !*
